@@ -23,9 +23,10 @@ int main(){
     strncpy(opts.host, TEST_SERVER, 255);
     opts.host[254] = '\0';
     opts.port = 27017;
-
-    if (mongo_connect( conn , &opts )){
-        printf("failed to connect\n");
+	int err;
+	err = mongo_connect( conn , &opts );
+    if (err){
+        printf("failed to connect error returned %d\n",err);
         exit(1);
     }
 

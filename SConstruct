@@ -42,8 +42,12 @@ if os.sys.platform in ["darwin", "linux2"]:
         env.Append( CPPFLAGS=" -O3 " )
         # -O3 benchmarks *significantly* faster than -O2 when disabling networking
 elif 'win32' == os.sys.platform:
-    env.Append( LIBS='ws2_32' )
-        
+    env.Append( LIBS='ws2_32.lib' )
+    print "is windows32 \n"
+    env = Environment(tools = ['mingw'])
+    env.Append(DEFINES='WIN32_LEAN_AND_MEAN')
+    env.Append(_LIBFLAGS = ' -lws2_32')
+
 
 #we shouldn't need these options in c99 mode
 if not GetOption('use_c99'):
@@ -68,6 +72,7 @@ have_libjson = False
 conf = Configure(env)
 if conf.CheckLib('json'):
     have_libjson = True
+
 env = conf.Finish()
 
 if sys.byteorder == 'big':
@@ -82,10 +87,13 @@ mLibFiles = coreFiles + mFiles + bFiles
 bLibFiles = coreFiles + bFiles
 m = env.Library( "mongoc" ,  mLibFiles )
 b = env.Library( "bson" , bLibFiles  )
+
 env.Default( env.Alias( "lib" , [ m[0] , b[0] ] ) )
-dynm = env.SharedLibrary( "mongoc" , mLibFiles )
+dynm = env.SharedLibrary( "mongoc" , mLibFiles)
 dynb = env.SharedLibrary( "bson" , bLibFiles )
 env.Default( env.Alias( "sharedlib" , [ dynm[0] , dynb[0] ] ) )
+
+
 
 benchmarkEnv = env.Clone()
 benchmarkEnv.Append( CPPDEFINES=[('TEST_SERVER', r'\"%s\"'%GetOption('test_server'))] )

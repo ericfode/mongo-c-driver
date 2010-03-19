@@ -19,6 +19,9 @@
 #define MONGO_EXTERN_C_END
 #endif
 
+#ifdef _WIN64
+#define MONGO_USE_LONG_LONG_INT
+#endif
 
 #if defined(MONGO_HAVE_STDINT) || __STDC_VERSION__ >= 199901L
 #include <stdint.h>

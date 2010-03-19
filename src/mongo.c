@@ -23,8 +23,13 @@ static const int one = 1;
 
 static void looping_write(mongo_connection * conn, const void* buf, int len){
     const char* cbuf = buf;
-    while (len){
+	while (len){
         int sent = send(conn->sock, cbuf, len, 0);
+#ifdef _WIN32
+		if(sent==-1){
+			printf("network error %s",WSAGetLastError());
+		}
+#endif
         if (sent == -1) MONGO_THROW(MONGO_EXCEPT_NETWORK);
         cbuf += sent;
         len -= sent;
@@ -92,6 +97,7 @@ mongo_message * mongo_message_create( int len , int id , int responseTo , int op
 /* ----------------------------
    connection stuff
    ------------------------------ */
+#ifndef _WIN32
 static int mongo_connect_helper( mongo_connection * conn ){
     /* setup */
     conn->sock = 0;
@@ -121,11 +127,55 @@ static int mongo_connect_helper( mongo_connection * conn ){
     conn->connected = 1;
     return 0;
 }
+#endif
 
+#ifdef _WIN32
+static int mongo_connect_helper( mongo_connection * conn ){
+	conn->sock = 0;
+	conn->connected = 0;
+	
+	
+	WORD wVersionReq;
+	int wsaError;
+
+	wVersionReq = MAKEWORD(2,2);
+
+	wsaError = WSAStartup(wVersionReq, &conn->wsaData);
+	if(wsaError != 0 ){
+		printf("win sock was not found\n"	);
+	}
+	
+	memset( conn->sa.sin_zero , 0 , sizeof(conn->sa.sin_zero) );
+	conn->sa.sin_family = AF_INET;
+	conn->sa.sin_port = htons(conn->left_opts->port);
+	conn->sa.sin_addr.s_addr = inet_addr( conn->left_opts->host );
+	conn->addressSize = sizeof(conn->sa);
+	
+	int err;
+	conn->sock = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
+	if (conn->sock == INVALID_SOCKET)
+	{
+		printf("Error at socket(): %ld\n", WSAGetLastError());
+		WSACleanup();
+		return INVALID_SOCKET;
+	}
+	err = connect(conn->sock,(SOCKADDR*)&conn->sa,conn->addressSize);
+	if(err)
+	{
+		printf("connect() failed: %ld.\n", WSAGetLastError());
+		WSACleanup();
+		return err;
+	}
+
+	if(conn->sock ==0 ){
+		return mongo_conn_fail;
+	}
+	return 0;
+}
+#endif
 mongo_conn_return mongo_connect( mongo_connection * conn , mongo_connection_options * options ){
     MONGO_INIT_EXCEPTION(&conn->exception);
-
-    conn->left_opts = bson_malloc(sizeof(mongo_connection_options));
+  conn->left_opts = bson_malloc(sizeof(mongo_connection_options));
     conn->right_opts = NULL;
 
     if ( options ){
@@ -395,6 +445,7 @@ bson_bool_t mongo_disconnect( mongo_connection * conn ){
 
 #ifdef _WIN32
     closesocket( conn->sock );
+	WSACleanup();
 #else
     close( conn->sock );
 #endif
@@ -446,6 +497,7 @@ bson_bool_t mongo_cursor_get_more(mongo_cursor* cursor){
     } else{
         return 0;
     }
+	WSACleanup();
 }
 
 bson_bool_t mongo_cursor_next(mongo_cursor* cursor){

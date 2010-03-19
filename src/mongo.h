@@ -10,6 +10,7 @@
 #include <windows.h>
 #include <winsock.h>
 typedef int socklen_t;
+
 #else
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -25,15 +26,23 @@ typedef struct mongo_connection_options {
     int port;
 } mongo_connection_options;
 
+
 typedef struct {
-    mongo_connection_options* left_opts; /* always current server */
+#ifdef _WIN32 
+	WSADATA wsaData;
+#endif
+	struct sockaddr_in sa;
+
+	mongo_connection_options* left_opts; /* always current server */
     mongo_connection_options* right_opts; /* unused with single server */
-    struct sockaddr_in sa;
+    
     socklen_t addressSize;
     int sock;
     bson_bool_t connected;
     mongo_exception_context exception;
 } mongo_connection;
+
+
 
 #pragma pack(1)
 typedef struct {

@@ -620,7 +620,7 @@ void bson_fatal_msg( int ok , const char* msg){
         err_handler(msg);
     }
 
-    fprintf( stderr , "error: %s\n" , msg );
+    fprintf( stdout , "error: %s\n" , msg );
     exit(-5);
 }
 
